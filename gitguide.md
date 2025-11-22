@@ -25,7 +25,13 @@ THEN create your branch while main is checked out.  The branch will then switch 
 git checkout -b NEW_BRANCH_NAME
 ```
 
-Then you can make your changes.
+Then you can make your changes. Also one more thing on checkout it can also reset files back to the version in the repo upstream if you make a mistake and need to revert the file.
+
+This will reset the file.
+
+```sh
+git checkout myfile.txt
+```
 
 ### Observing the Status
 
