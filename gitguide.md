@@ -1,107 +1,184 @@
 # Git Guide
 
-### Cloning a Repo
+## Cloning a repo
 
-This just clones a repo to the current working directory
+This clones a repo to your current working directory:
 
 ```sh
 git clone git@github.com:ORGANIZATION/REPONAME.git
 ```
 
-### Checkout a branch
+## Keeping main up-to-date and creating a branch
 
-You usually are on main or master on clone. You want to checkout a branch to make updates.
-You COULD just change main and push it up but it is sinful to do so. Others working on other branches would not know or have the updates you made.
+It's a good idea to update your local main before creating a feature branch so your work starts from the latest code.
 
-ALWAYS ALWAYS PULL MAIN this will pull any changes that you might not have since other people make PRs.  This pulls and makes your local main match what is in github.
-
-```sh
-git pull origin main
-```
-
-THEN create your branch while main is checked out.  The branch will then switch off the main branch and onto your new one.
+Option A — update local main and then create a branch:
 
 ```sh
-git checkout -b NEW_BRANCH_NAME
+# Make sure you're on main
+git checkout main        # or: git switch main
+
+# Update it from origin
+git pull --rebase origin main   # or: git fetch origin && git merge origin/main
+
+# Create and switch to a new branch
+git switch -c NEW_BRANCH_NAME   # or: git checkout -b NEW_BRANCH_NAME
 ```
 
-Then you can make your changes. Also one more thing on checkout it can also reset files back to the version in the repo upstream if you make a mistake and need to revert the file.
+Notes:
+- `git pull --rebase` is often preferred to avoid unnecessary merge commits; follow your team's convention.
+- If you use older Git or prefer, `git checkout -b NEW_BRANCH_NAME` still works.
 
-This will reset the file.
+## Observing the status
 
-```sh
-git checkout myfile.txt
-```
-
-### Observing the Status
-
-This is good to see what files are changed. If it says untracked a simple commit will still add the changes.  If you add a **NEW** file you will need to git add it.
+See what files are changed and what is staged/untracked:
 
 ```sh
 git status
+# or for a compact view
+git status -s
 ```
 
-### Adding Files
+Important: untracked (new) files are not included by a commit until you stage them with `git add`.
 
-If you created new files git add them.  This allows git to track the files.
+## Adding files
+
+Stage a new or modified file so it will be included in the next commit:
 
 ```sh
+# Stage a specific file
 git add foobar.txt
+
+# Stage all changes (new/modified/deleted)
+git add -A
+# or
+git add .
 ```
 
-### Commit Changes
+## Commit changes
+
+- `-a` automatically stages changes to already tracked files (modified/deleted), but does NOT add new, untracked files.
+- To include new files you must `git add` them first.
+
+Examples:
 
 ```sh
-git commit -a -m "A nice commit message explaining what you did"
+# Good: stage what you want, then commit with a message
+git add -A
+git commit -m "A concise description of what you changed"
+
+# Commit tracked changes only (no new files)
+git commit -a -m "Update tracked files"
 ```
 
-### Push the Changes to the Upstream Repository
+Commit message tip: keep the subject line short (50-72 chars), and explain why you changed things if needed in a longer body.
 
-This pushes your branch up to github so you can make the PR or Pull Request
+## Pushing your branch to GitHub
+
+Push your branch to the remote and set the upstream so later `git push` knows where to go:
 
 ```sh
-git push origin NEW_BRANCH_NAME
+git push -u origin NEW_BRANCH_NAME
 ```
 
-### Additional Changes
+After that you can simply `git push` to send more commits.
 
-If you already have the PR submitted you can still make additional changes. Just make the changes git add or git commit and then git push origin BRANCH_NAME.  Those changes get **ADDED** to the open PR.
+## Updating an open PR
 
+If you've already opened a PR and want to add changes:
+- Make commits on the same branch.
+- Push them: `git push` (or if necessary `git push --force-with-lease` after a rebase — see below).
+The PR will update automatically with new commits on the branch.
 
-### Rebasing
+## Discarding local changes to a file
 
-When you rebase, Git takes the commits from your branch and re-applies them on top of the latest commits from the target branch (e.g., main).
-This also keeps the commit history clean. it creates a linear history.
+There are newer commands and older ones. Examples:
 
-### Why Rebase is Useful in Teams:
-- **Avoids Merge Commits:** Keeps the history clean and linear, which is easier to read.
-- **Keeps Your Branch Up-to-Date:** Ensures your branch has the latest changes from the main branch.
-- **Reduces Conflicts:** Resolving conflicts during a rebase ensures your branch is compatible with the latest changes.
+```sh
+# Old-style (still works on many Git versions) — be explicit with `--` to avoid ambiguity:
+git checkout -- path/to/file
 
-### Important Notes:
-- **Rewriting History:** Rebasing rewrites commit history, so avoid rebasing public/shared branches.
-- **Force Push Required:** After rebasing, you need to force push (`git push --force`) because the commit history has changed.
+# Preferred modern way (since Git 2.23):
+git restore path/to/file
+# Or to restore from HEAD explicitly:
+git restore --source=HEAD path/to/file
+```
 
-### Example Scenario:
-Imagine this scenario:
-- `main` branch has commits: `A -> B -> C`
-- Your branch has commits: `D -> E` (based on `B`)
+Use these only when you intend to discard local unstaged changes.
 
-If someone adds a new commit `F` to `main`, your branch is now behind:
+## Rebasing (keeping your branch on top of main)
+
+Rebasing takes your branch's commits and re-applies them onto the tip of another branch (commonly main), yielding a linear history.
+
+Typical workflow:
+
+```sh
+# Ensure remote refs are up-to-date
+git fetch origin
+
+# Update local main (optional: based on team policy)
+git checkout main
+git pull --rebase origin main   # or: git fetch origin && git merge origin/main
+
+# Switch back to your branch and rebase onto main
+git checkout your-branch
+git rebase main          # or: git rebase origin/main
+```
+
+If there are conflicts, Git will stop and let you resolve them. After resolving a conflict in a file:
+```sh
+git add path/to/conflicted-file
+git rebase --continue
+```
+To abort the rebase and return to the previous state:
+```sh
+git rebase --abort
+```
+
+Important notes:
+- Rebasing rewrites history. Avoid rebasing branches that have been pushed and are being used/shared by others.
+- After rebasing a branch that was already pushed, you must force-push. Prefer:
+```sh
+git push --force-with-lease
+```
+instead of `--force` to reduce the risk of overwriting others' work.
+
+## Example scenario
+
+- `main` has: A -> B -> C
+- Your branch (created from B) has: D -> E
+
+Someone pushes F to main: now
 ```
 main: A -> B -> C -> F
 your-branch: A -> B -> D -> E
 ```
 
-To rebase your branch onto `main`:
-```bash
+Rebase your branch onto the updated main:
+```sh
+git fetch origin
 git checkout your-branch
-git rebase main
+git rebase origin/main
 ```
-
-After rebasing, your branch will look like this:
+After rebasing:
 ```
 main: A -> B -> C -> F
 your-branch: A -> B -> C -> F -> D' -> E'
 ```
-Git re-applies your commits (`D` and `E`) on top of `F`, creating new commits (`D'` and `E'`).
+The commits D and E become D' and E' (rewritten). Push using `--force-with-lease`.
+
+## Short tips / cheatsheet
+
+- Create branch: git switch -c my-branch
+- Stage changes: git add -A
+- Commit: git commit -m "message"
+- Push new branch: git push -u origin my-branch
+- Update local main: git fetch origin && git merge origin/main  (or git pull --rebase origin main)
+- Rebase: git rebase origin/main; resolve conflicts; git rebase --continue
+- Force-push safely: git push --force-with-lease
+
+## Final notes
+
+- Follow your team's branching and merge/rebase conventions.
+- Use `--force-with-lease` instead of `--force` when pushing rebased branches.
+- Prefer the newer commands git switch and git restore for clarity, but older commands (git checkout) still work on many systems.
